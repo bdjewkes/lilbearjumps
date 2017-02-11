@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>hello phaser!</title>
+        <script src="//cdn.jsdelivr.net/phaser/2.6.2/phaser.min.js"></script>
+    </head>
+    <body>
+
+    <script type="text/javascript">
+
+    window.onload = function() {
+
+        var game = new Phaser.Game(800, 600, Phaser.AUTO, 'Lil Bear Jump', { preload: preload, create: create, update: update, render: render });
+
+        function preload () {
+
+            game.load.image('bear', 'bear.gif');
+
+        }
+
+        var bear;
+        var platform;
+        function create () {
+
+            game.physics.startSystem(Phaser.Physics.ARCADE)
+
+            bear = game.add.sprite(0, 0, 'bear');
+            bear.anchor.setTo(0.5, 0.5);
+            bear.scale.x = 0.05;
+            bear.scale.y = 0.05;
+                       
+            game.physics.enable(bear, Phaser.Physics.ARCADE);
+            bear.body.collideWorldBounds = true;
+            bear.body.gravity.set(0, 700)
+            //  Tell it we don't want physics to manage the rotation
+            bear.body.allowRotation = false;
+            
+            platform = game.add.sprite(game.world.centerX, game.world.centerY, 'platform');
+            game.physics.enable(platform, Phaser.Physics.ARCADE);
+            platform.body.immovable = true;
+            platform.anchor.setTo(0.5, 0.5);
+            platform.scale.x = 5;
+
+        }
+
+        function update() {
+            var speed = 500;
+            var pointer = game.input.activePointer;
+            var angle = game.physics.arcade.angleToPointer(bear, pointer);
+            bear.body.velocity.x = Math.cos(angle) * speed;
+            
+            game.physics.arcade.collide(bear, platform, collisionHandler, null, this);
+
+
+            if(bear.body.onFloor())
+            {
+                bear.body.velocity.y = -700;
+            }
+        }
+
+        function render() {
+            game.debug.spriteInfo(bear, 32, 32);
+        }   
+
+        function collisionHandler(obj1, obj2){
+            if(obj1.body.velocity.y >= 0)
+            {
+                obj1.body.velocity.y = -700 ;
+            }
+        }
+    };
+    
+
+
+    </script>
+
+    </body>
+</html>
