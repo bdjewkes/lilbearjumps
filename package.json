@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "dependencies": {
+    "path": "^0.12.7",
+    "phaser": "^2.6.2"
+  },
+  "devDependencies": {
+    "ts-loader": "^2.0.0",
+    "typescript": "^2.1.6",
+    "webpack": "^2.2.1"
+  }
+}
