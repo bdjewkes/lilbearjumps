@@ -71,62 +71,121 @@
 /***/ (function(module, exports) {
 
 /// <reference path="../node_modules/phaser/typescript/phaser.d.ts" />
-var Game = (function () {
-    function Game() {
-        this.game = new Phaser.Game(800, 600, Phaser.AUTO, 'Lil Bear Jump', {
-            preload: this.preload,
-            create: this.create,
-            update: this.update,
-            render: this.render
-        });
+var GAME_MODE_PLAY = "play";
+var BEAR_KEY = 'bear';
+var PLATFORM_KEY = 'platform';
+var VIEW_WIDTH = 600;
+var VIEW_HEIGHT = 600;
+var JUMP_VELOCITY = -500;
+var BearJump = (function () {
+    function BearJump(game) {
+        var _this = this;
+        this.yOrigin = 0;
+        this.yChange = 0;
+        this.cameraYMin = 9999;
+        this.platformYMin = 9999;
+        this.preload = function () {
+            _this.game.load.image(BEAR_KEY, './assets/bear.gif');
+            _this.game.load.image(PLATFORM_KEY, './assets/platform.png');
+        };
+        this.create = function () {
+            _this.game.stage.backgroundColor = '#6bf';
+            _this.game.world.setBounds(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+            _this.game.physics.startSystem(Phaser.Physics.ARCADE);
+            _this.bear = _this.makeBear(_this.game.world.centerX, _this.game.world.height - 50);
+            _this.platforms = _this.game.add.group();
+            _this.platforms.enableBody = true;
+            _this.platforms.createMultiple(10, PLATFORM_KEY);
+            for (var i = 0; i < 9; i++) {
+                _this.makePlatform(_this.game.world.centerX, _this.game.world.height - 100 - (100 * i), 0.5);
+            }
+            _this.game.camera.bounds = null;
+        };
+        this.makeBear = function (x, y) {
+            var bear = _this.game.add.sprite(x, y, BEAR_KEY);
+            bear.scale.set(0.05, 0.05);
+            bear.anchor.set(0.5, 0.5);
+            _this.yOrigin = bear.y;
+            _this.yChange = 0;
+            _this.game.physics.enable(bear, Phaser.Physics.ARCADE);
+            var bearBody = bear.body;
+            bearBody.gravity.y = 600;
+            bearBody.collideWorldBounds = false;
+            bearBody.allowGravity = true;
+            bearBody.immovable = true;
+            bearBody.checkCollision.up = false;
+            bearBody.checkCollision.left = false;
+            bearBody.checkCollision.right = false;
+            bearBody.checkCollision.down = true;
+            bearBody.velocity.y = -600;
+            return bear;
+        };
+        this.makePlatform = function (x, y, scaleWidth) {
+            var platform = _this.platforms.getFirstDead();
+            platform.reset(x, y);
+            platform.scale.set(scaleWidth, 0.2);
+            platform.anchor.set(0.5, 0.5);
+            platform.body.immovable = true;
+            return platform;
+        };
+        this.bearMove = function () {
+            var speed = 500;
+            var pointer = _this.game.input.activePointer;
+            var angle = _this.game.physics.arcade.angleToPointer(_this.bear, pointer);
+            _this.bear.body.velocity.x = Math.cos(angle) * speed;
+            _this.game.world.wrap(_this.bear, 0, true, true, false);
+            // track the maximum amount that the hero has travelled
+            _this.yChange = Math.max(_this.yChange, Math.abs(_this.bear.y - _this.yOrigin));
+            //console.log("bear Y " + this.bear.y +  " yChange: " + this.yChange + " yOrigin: " + this.yOrigin + " yCamera: " + this.cameraYMin)
+            if (_this.bear.y > _this.cameraYMin + _this.game.height + 500) {
+                _this.game.state.restart(true, false);
+            }
+        };
+        this.shutdown = function () {
+            console.log("shutdown");
+            // reset everything, or the world will be messed up
+            _this.game.world.setBounds(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+            _this.bear.destroy();
+            _this.bear = null;
+            _this.platforms.destroy();
+            _this.platforms = null;
+            _this.cameraYMin = 9999;
+        };
+        this.render = function () {
+            _this.game.context.fillStyle = 'rgba(255,0,0,0.6)';
+            //  this.game.context.fillRect(zone.x, zone.y, zone.width, zone.height);
+            _this.game.debug.cameraInfo(_this.game.camera, 32, 32);
+            _this.game.debug.spriteInfo(_this.bear, 32, 200);
+        };
+        this.game = game;
     }
-    Game.prototype.preload = function () {
-        this.game.load.image('bear', 'assets/bear.gif');
+    BearJump.prototype.update = function () {
+        var _this = this;
+        this.game.world.setBounds(0, -this.yChange, this.game.world.width, this.game.height + this.yChange);
+        this.cameraYMin = Math.min(this.cameraYMin, this.bear.y - this.game.height + 130);
+        this.game.camera.y = this.cameraYMin;
+        this.game.physics.arcade.collide(this.bear, this.platforms, function (bear, platform) {
+            var bearBody = bear.body;
+            if (bearBody.checkCollision.down) {
+                bearBody.velocity.y = JUMP_VELOCITY;
+            }
+        }, null, this);
+        this.bearMove();
+        this.platforms.forEachAlive(function (elem) {
+            _this.platformYMin = Math.min(_this.platformYMin, elem.y);
+            if (elem.y > _this.game.camera.y + _this.game.height) {
+                //console.log("Killing platform at " + elem.y + " and creating platform at " + createHeight + " The game height is " + this.game.height + " PlatformYMin is " + platformYMin);
+                elem.kill();
+                _this.makePlatform(_this.game.world.centerX, _this.platformYMin - 100, 0.5);
+            }
+        }, this);
     };
-    Game.prototype.create = function () {
-        this.game.physics.startSystem(Phaser.Physics.ARCADE);
-        this.bear = this.game.add.sprite(0, 0, 'bear');
-        this.bear.anchor.setTo(0.5, 0.5);
-        this.bear.scale.x = 0.05;
-        this.bear.scale.y = 0.05;
-        this.game.physics.enable(this.bear, Phaser.Physics.ARCADE);
-        this.bear.body.gravity.set(0, 700);
-        //  Tell it we don't want physics to manage the rotation
-        this.bear.body.allowRotation = false;
-        // bear only jumps when falling
-        this.bear.body.checkCollision.up = false;
-        this.platform = this.game.add.sprite(this.game.world.centerX, this.game.world.centerY, null);
-        this.game.physics.enable(this.platform, Phaser.Physics.ARCADE);
-        this.platform.body.setSize(50, 50, 0, 0); // set the size of the rectangle
-        this.game.physics.enable(this.platform, Phaser.Physics.ARCADE);
-        this.platform.body.immovable = true;
-        this.platform.anchor.setTo(0.5, 0.5);
-    };
-    Game.prototype.restart = function () {
-    };
-    Game.prototype.jump = function (body) {
-        body.velocity.y = -700;
-    };
-    Game.prototype.update = function () {
-        var speed = 500;
-        var pointer = this.game.input.activePointer;
-        var angle = this.game.physics.arcade.angleToPointer(this.bear, pointer);
-        this.bear.body.velocity.x = Math.cos(angle) * speed;
-        this.game.physics.arcade.collide(this.bear, this.platform, this.collisionHandler, null, this);
-    };
-    Game.prototype.render = function () {
-        this.game.debug.spriteInfo(this.platform, 32, 32);
-    };
-    Game.prototype.collisionHandler = function (obj1, obj2) {
-        console.log("ping");
-        if (obj1.body.touching.down && obj1.body.velocity.y >= 0) {
-            this.jump(this.bear.body);
-        }
-    };
-    return Game;
+    return BearJump;
 }());
 window.onload = function () {
-    var game = new Game();
+    var game = new Phaser.Game(VIEW_WIDTH, VIEW_HEIGHT, Phaser.CANVAS, '');
+    game.state.add(GAME_MODE_PLAY, new BearJump(game));
+    game.state.start(GAME_MODE_PLAY);
 };
 
 

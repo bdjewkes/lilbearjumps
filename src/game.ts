@@ -120,8 +120,7 @@ class BearJump
         }, null, this); 
 
         this.bearMove();
-
-        this.platforms.forEachAlive( (elem)=>{
+        this.platforms.forEachAlive((elem)=>{
             this.platformYMin = Math.min(this.platformYMin, elem.y);
             if(elem.y > this.game.camera.y + this.game.height) {
                 //console.log("Killing platform at " + elem.y + " and creating platform at " + createHeight + " The game height is " + this.game.height + " PlatformYMin is " + platformYMin);
