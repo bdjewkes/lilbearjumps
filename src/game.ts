@@ -1,5 +1,5 @@
-/// <reference path="../node_modules/phaser/typescript/phaser.d.ts" />
-
+/// <reference path="../tsDefinitions/phaser.d.ts" />
+  
 const GAME_MODE_PLAY = "play";
 
 const BEAR_KEY = 'bear';
@@ -37,13 +37,14 @@ class BearJump
         this.game.physics.startSystem(Phaser.Physics.ARCADE);
         this.bear = this.makeBear(this.game.world.centerX, this.game.world.height - 50);
         
-        this.platforms = this.game.add.group()
+        this.platforms = this.game.add.physicsGroup()
         this.platforms.enableBody = true;
         this.platforms.createMultiple(10, PLATFORM_KEY);
+        this.game.physics.enable(this.platforms, Phaser.Physics.ARCADE);
     
 
         for(var i = 0; i < 9; i++) {
-           this.makePlatform(this.game.world.centerX, this.game.world.height - 100 - (100 * i), 0.5);
+           this.makePlatform(this.game.rnd.between(100, this.game.world.width - 150), this.game.world.height - 100 - (100 * i), 0.4);
         }
         this.game.camera.bounds = null;
     }
@@ -62,7 +63,6 @@ class BearJump
         bearBody.gravity.y = 600;
         bearBody.collideWorldBounds = false;
         bearBody.allowGravity = true;
-        bearBody.immovable = true;
         bearBody.checkCollision.up = false;
         bearBody.checkCollision.left = false;
         bearBody.checkCollision.right = false;
@@ -76,9 +76,10 @@ class BearJump
     makePlatform = (x: number, y: number, scaleWidth: number) => {
         let platform = this.platforms.getFirstDead();
         platform.reset(x, y);
-        platform.scale.set(scaleWidth, 0.2);
+        platform.scale.set(scaleWidth, 0.1);
         platform.anchor.set(0.5, 0.5);
         platform.body.immovable = true;
+        platform.body.checkCollision.up = true;
 
         return platform;
     }
@@ -94,6 +95,9 @@ class BearJump
         this.game.world.wrap(this.bear, 0, true, true, false);
         // track the maximum amount that the hero has travelled
         this.yChange = Math.max(this.yChange, Math.abs(this.bear.y - this.yOrigin));
+
+        this.bear.body.gravity.y = 600 - (this.yChange/50);
+
         //console.log("bear Y " + this.bear.y +  " yChange: " + this.yChange + " yOrigin: " + this.yOrigin + " yCamera: " + this.cameraYMin)
 
 
@@ -104,20 +108,19 @@ class BearJump
     }
 
     update(){
-        
+    
         this.game.world.setBounds(0, -this.yChange, this.game.world.width, this.game.height + this.yChange );
 
-        this.cameraYMin = Math.min(this.cameraYMin, this.bear.y - this.game.height + 130);
+        this.cameraYMin = Math.min(this.cameraYMin, this.bear.y - this.game.height + 400);
         this.game.camera.y = this.cameraYMin;
 
-        this.game.physics.arcade.collide(this.bear, this.platforms, 
-            (bear: Phaser.Sprite, platform: Phaser.Sprite) =>{
-                let bearBody = bear.body as Phaser.Physics.Arcade.Body;
-                if(bearBody.checkCollision.down)
-                {
-                    bearBody.velocity.y = JUMP_VELOCITY;
-                }
-        }, null, this); 
+        this.game.physics.arcade.collide(this.bear, this.platforms, (bear, platform) => 
+        {
+            if(bear.body.touching.down) 
+            {
+                bear.body.velocity.y = JUMP_VELOCITY;
+            }
+        }, null, this);
 
         this.bearMove();
         this.platforms.forEachAlive((elem)=>{
@@ -125,7 +128,7 @@ class BearJump
             if(elem.y > this.game.camera.y + this.game.height) {
                 //console.log("Killing platform at " + elem.y + " and creating platform at " + createHeight + " The game height is " + this.game.height + " PlatformYMin is " + platformYMin);
                 elem.kill();
-                this.makePlatform( this.game.world.centerX, this.platformYMin - 100, 0.5);
+                this.makePlatform(this.game.rnd.between(100, this.game.world.width - 100 ), this.platformYMin - 150, 0.2);
             }
         }, this );
     }
@@ -139,6 +142,8 @@ class BearJump
         this.platforms.destroy();
         this.platforms = null;
         this.cameraYMin = 9999;
+        this.yOrigin = 0;
+        this.platformYMin = 9999;
   }
 
 
@@ -147,8 +152,9 @@ class BearJump
         this.game.context.fillStyle = 'rgba(255,0,0,0.6)';
       //  this.game.context.fillRect(zone.x, zone.y, zone.width, zone.height);
 
-        this.game.debug.cameraInfo(this.game.camera, 32, 32);
-        this.game.debug.spriteInfo(this.bear, 32,200);
+        this.game.debug.text(this.bear.body.gravity.y ,32,32 )
+       // this.game.debug.cameraInfo(this.game.camera, 32, 32);
+       // this.game.debug.spriteInfo(this.bear, 32,200);
     }
 }
     
